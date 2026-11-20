@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>プロジェクト別タスク管理</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="タスク管理">
+<meta name="theme-color" content="#0f172a">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background:#0f172a; color:#e2e8f0; }
+  header { position:sticky; top:0; background:#0f172add; backdrop-filter: blur(8px); padding:14px 16px 10px; z-index:10; border-bottom:1px solid #1e293b; }
+  h1 { font-size:17px; margin:0 0 10px; }
+  .tabs { display:flex; gap:8px; }
+  .tab { flex:1; padding:9px; border-radius:10px; border:1px solid #334155; background:#1e293b; color:#94a3b8; font-size:14px; }
+  .tab.active { background:#0369a1; color:#fff; border-color:#0369a1; }
+  main { padding:12px 12px 40px; max-width:760px; margin:0 auto; }
+  .project { background:#1e293b; border:1px solid #334155; border-radius:14px; margin-bottom:12px; overflow:hidden; }
+  .p-head { display:flex; align-items:center; gap:8px; padding:12px; cursor:pointer; user-select:none; }
+  .p-head .arrow { color:#7dd3fc; font-size:13px; width:16px; }
+  .p-head .name { font-weight:700; font-size:15px; flex:1; word-break:break-word; }
+  .count { background:#334155; color:#cbd5e1; border-radius:999px; font-size:12px; padding:2px 9px; }
+  .del-proj { background:none; border:none; color:#64748b; font-size:13px; padding:4px 6px; }
+  .p-body { border-top:1px solid #334155; padding:8px 12px 12px; }
+  .task { display:flex; align-items:flex-start; gap:9px; padding:9px 2px; border-bottom:1px solid #263449; }
+  .task:last-of-type { border-bottom:none; }
+  .task input[type=checkbox] { width:21px; height:21px; margin-top:1px; accent-color:#38bdf8; flex:none; }
+  .t-main { flex:1; min-width:0; }
+  .t-title { font-size:14.5px; word-break:break-word; }
+  .task.held .t-title { color:#94a3b8; }
+  .badge-hold { display:inline-block; background:#713f12; color:#fde68a; font-size:11px; border-radius:6px; padding:1px 7px; margin-left:7px; vertical-align:1px; }
+  .chip { display:inline-block; background:#0c4a6e; color:#7dd3fc; font-size:11.5px; border-radius:999px; padding:2px 9px; margin-top:4px; }
+  .proj-name { display:block; color:#94a3b8; font-size:12px; margin-top:3px; }
+  .hold-btn { background:#334155; color:#e2e8f0; border:none; border-radius:8px; font-size:12px; padding:6px 10px; flex:none; }
+  .hold-btn.on { background:#713f12; color:#fde68a; }
+  .add-form { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+  .add-form input[type=text] { flex:1 1 160px; background:#0f172a; border:1px solid #334155; border-radius:9px; color:#e2e8f0; padding:9px; font-size:14px; }
+  .add-form select { background:#0f172a; border:1px solid #334155; border-radius:9px; color:#e2e8f0; padding:9px; font-size:13px; max-width:100%; }
+  .hold-check { display:flex; align-items:center; gap:5px; font-size:13px; color:#fde68a; padding:0 4px; }
+  .hold-check input { width:17px; height:17px; accent-color:#eab308; }
+  .add-btn { background:#0284c7; color:#fff; border:none; border-radius:9px; padding:9px 16px; font-size:14px; }
+  .new-proj { display:flex; gap:7px; margin-top:4px; }
+  .new-proj input { flex:1; background:#1e293b; border:1px solid #334155; border-radius:10px; color:#e2e8f0; padding:11px; font-size:14px; }
+  .new-proj button { background:#334155; color:#e2e8f0; border:none; border-radius:10px; padding:11px 16px; font-size:14px; }
+  .group { margin-bottom:18px; }
+  .g-head { font-size:14px; font-weight:700; color:#7dd3fc; margin:14px 2px 6px; }
+  .g-head .count { margin-left:6px; }
+  .empty { color:#64748b; font-size:13.5px; padding:10px 2px; }
+  .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:4px 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>プロジェクト別タスク管理</h1>
+  <div class="tabs">
+    <button class="tab active" id="tabProj">プロジェクト別</button>
+    <button class="tab" id="tabAssignee">担当別</button>
+  </div>
+</header>
+<main id="main"></main>
+
+<script>
+var ASSIGNEES = [
+  ["pc1-codex","PC1（自宅）・Codex"],
+  ["pc1-claude","PC1（自宅）・Claude"],
+  ["pc1-muse","PC1（自宅）・Muse（今後）"],
+  ["pc2-codex","PC2（持ち運び）・Codex"],
+  ["pc2-claude","PC2（持ち運び）・Claude"],
+  ["pc2-muse","PC2（持ち運び）・Muse"],
+  ["mobile-kodama","モバイル・Muse こだま"],
+  ["mobile-sensei","モバイル・Muse 先生"],
+  ["muse-hub","Muse（ハブ）"],
+  ["self","あなた"],
+  ["unassigned","未定"]
+];
+function assigneeLabel(k){ for (var i=0;i<ASSIGNEES.length;i++) if (ASSIGNEES[i][0]===k) return ASSIGNEES[i][1]; return k; }
+
+var SEED = {
+  projects: [
+    {id:1, name:"もび道", open:true},
+    {id:2, name:"週1 新規制作", open:true},
+    {id:3, name:"発想メモワールド", open:true},
+    {id:4, name:"潮環占い", open:true},
+    {id:5, name:"推しタウン", open:true},
+    {id:6, name:"モビー公式サイト", open:true},
+    {id:7, name:"にゃっコレ", open:true},
+    {id:8, name:"基盤・PC接続", open:true}
+  ],
+  tasks: [
+    {projectId:1, title:"サーバー（Cloudflare Workers＋D1）をデプロイして接続する", assignee:"pc2-claude", hold:false},
+    {projectId:1, title:"アプリ内課金を接続する", assignee:"pc2-codex", hold:false},
+    {projectId:1, title:"イベント巡礼を実装する", assignee:"pc2-claude", hold:false},
+    {projectId:1, title:"41秒PR動画の「全42種」表記を87種に直す（または外す）", assignee:"muse-hub", hold:false},
+    {projectId:7, title:"App Store分析（毎日）＋施策分析", assignee:"pc1-codex", hold:false},
+    {projectId:4, title:"App Store分析（毎日）＋施策分析", assignee:"pc1-codex", hold:false},
+    {projectId:4, title:"note hub-1原稿の確認（相性16タイプ／40タイプ表記）", assignee:"self", hold:false},
+    {projectId:4, title:"結果文・性格文を決める", assignee:"self", hold:false},
+    {projectId:4, title:"潮祖3Dの頭サイズを決める（現行／10%拡大）", assignee:"self", hold:false},
+    {projectId:4, title:"プレミアム本番化（Stripe本番価格＋サイト組み込み）", assignee:"muse-hub", hold:false},
+    {projectId:6, title:"にゃこモビー診断を公開する", assignee:"pc2-claude", hold:false},
+    {projectId:6, title:"診断のメアド登録の集約先を確認する", assignee:"muse-hub", hold:false},
+    {projectId:6, title:"サイトの更新方法を確認する", assignee:"muse-hub", hold:false},
+    {projectId:8, title:"PC1にMuseを入れる", assignee:"self", hold:false},
+    {projectId:8, title:"PC1のReason serve障害（EUNKNOWN, uv_spawn）を直す", assignee:"self", hold:false},
+    {projectId:8, title:"PC1/PC2との接続を安定化する", assignee:"muse-hub", hold:false},
+    {projectId:8, title:"アプリ用画像アセット生成（依頼ベース）", assignee:"pc1-codex", hold:false},
+    {projectId:8, title:"App Store Connect APIキーをPC1に置く", assignee:"self", hold:false},
+    {projectId:8, title:"PCのChromeでTikTokにログインしておく", assignee:"self", hold:false},
+    {projectId:2, title:"今週の新規×1（アプリ／事業／サイト）を決めて作る", assignee:"self", hold:false},
+    {projectId:3, title:"ピンチ／タップ接続／マージを実機でテストする", assignee:"self", hold:false},
+    {projectId:3, title:"クラウド同期の方針を決める", assignee:"self", hold:true},
+    {projectId:5, title:"Gate 1の判断", assignee:"self", hold:false},
+    {projectId:5, title:"改訂briefから提案スライドを作る", assignee:"muse-hub", hold:false}
+  ]
+};
+
+var KEY = "projectTasksV1";
+var state;
+try {
+  var raw = localStorage.getItem(KEY);
+  state = raw ? JSON.parse(raw) : null;
+} catch(e) { state = null; }
+if (!state || !state.projects) {
+  state = JSON.parse(JSON.stringify(SEED));
+  var base = 1000;
+  state.tasks.forEach(function(t, i){ t.id = base + i; });
+  save();
+}
+var view = "project";
+
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function projTasks(pid){ return state.tasks.filter(function(t){ return t.projectId === pid; }); }
+function projName(pid){ for (var i=0;i<state.projects.length;i++) if (state.projects[i].id===pid) return state.projects[i].name; return ""; }
+
+function taskRow(t, showProj) {
+  var h = '<div class="task' + (t.hold ? ' held' : '') + '">'
+    + '<input type="checkbox" data-act="done" data-id="' + t.id + '">'
+    + '<div class="t-main"><span class="t-title">' + esc(t.title) + '</span>'
+    + (t.hold ? '<span class="badge-hold">保留</span>' : '')
+    + '<br><span class="chip">' + esc(assigneeLabel(t.assignee)) + '</span>'
+    + (showProj ? '<span class="proj-name">' + esc(projName(t.projectId)) + '</span>' : '')
+    + '</div>'
+    + '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を戻す' : '保留') + '</button>'
+    + '</div>';
+  return h;
+}
+
+function render() {
+  var main = document.getElementById("main");
+  document.getElementById("tabProj").className = "tab" + (view==="project" ? " active" : "");
+  document.getElementById("tabAssignee").className = "tab" + (view==="assignee" ? " active" : "");
+  var h = "";
+  if (view === "project") {
+    state.projects.forEach(function(p){
+      var ts = projTasks(p.id);
+      h += '<section class="project"><div class="p-head" data-act="toggle" data-id="' + p.id + '">'
+        + '<span class="arrow">' + (p.open ? '▾' : '▸') + '</span>'
+        + '<span class="name">' + esc(p.name) + '</span>'
+        + '<span class="count">' + ts.length + '</span>'
+        + '<button class="del-proj" data-act="delproj" data-id="' + p.id + '">削除</button></div>';
+      if (p.open) {
+        h += '<div class="p-body">';
+        if (!ts.length) h += '<div class="empty">タスクなし</div>';
+        ts.forEach(function(t){ h += taskRow(t, false); });
+        h += '<div class="add-form">'
+          + '<input type="text" id="nt-' + p.id + '" placeholder="新しいタスク">'
+          + '<select id="na-' + p.id + '">'
+          + ASSIGNEES.map(function(a){ return '<option value="' + a[0] + '">' + esc(a[1]) + '</option>'; }).join("")
+          + '</select>'
+          + '<label class="hold-check"><input type="checkbox" id="nh-' + p.id + '">保留</label>'
+          + '<button class="add-btn" data-act="addtask" data-id="' + p.id + '">追加</button>'
+          + '</div></div>';
+      }
+      h += '</section>';
+    });
+    h += '<div class="new-proj"><input type="text" id="newProjName" placeholder="新しいプロジェクト名"><button data-act="addproj">プロジェクト追加</button></div>';
+  } else {
+    var any = false;
+    ASSIGNEES.forEach(function(a){
+      var ts = state.tasks.filter(function(t){ return t.assignee === a[0]; });
+      if (!ts.length) return;
+      any = true;
+      h += '<div class="group"><div class="g-head">' + esc(a[1]) + '<span class="count">' + ts.length + '</span></div><div class="card">';
+      ts.forEach(function(t){ h += taskRow(t, true); });
+      h += '</div></div>';
+    });
+    if (!any) h += '<div class="empty">タスクなし</div>';
+  }
+  main.innerHTML = h;
+}
+
+document.getElementById("tabProj").addEventListener("click", function(){ view = "project"; render(); });
+document.getElementById("tabAssignee").addEventListener("click", function(){ view = "assignee"; render(); });
+
+document.getElementById("main").addEventListener("click", function(ev){
+  var el = ev.target;
+  var act = el.getAttribute && el.getAttribute("data-act");
+  if (!act) return;
+  var id = parseInt(el.getAttribute("data-id"), 10);
+  if (act === "toggle") {
+    if (ev.target.getAttribute("data-act") === "delproj") return;
+    state.projects.forEach(function(p){ if (p.id === id) p.open = !p.open; });
+    save(); render();
+  } else if (act === "delproj") {
+    ev.stopPropagation();
+    if (confirm("このプロジェクトとタスクを削除しますか？")) {
+      state.projects = state.projects.filter(function(p){ return p.id !== id; });
+      state.tasks = state.tasks.filter(function(t){ return t.projectId !== id; });
+      save(); render();
+    }
+  } else if (act === "hold") {
+    state.tasks.forEach(function(t){ if (t.id === id) t.hold = !t.hold; });
+    save(); render();
+  } else if (act === "addtask") {
+    var inp = document.getElementById("nt-" + id);
+    var sel = document.getElementById("na-" + id);
+    var hc = document.getElementById("nh-" + id);
+    var title = inp.value.trim();
+    if (!title) return;
+    state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: sel.value, hold: hc.checked });
+    save(); render();
+  } else if (act === "addproj") {
+    var np = document.getElementById("newProjName");
+    var name = np.value.trim();
+    if (!name) return;
+    state.projects.push({ id: Date.now(), name: name, open: true });
+    save(); render();
+  }
+});
+
+document.getElementById("main").addEventListener("change", function(ev){
+  var el = ev.target;
+  if (el.getAttribute && el.getAttribute("data-act") === "done") {
+    var id = parseInt(el.getAttribute("data-id"), 10);
+    state.tasks = state.tasks.filter(function(t){ return t.id !== id; });
+    save(); render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>

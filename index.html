@@ -353,8 +353,6 @@ function render() {
     if (!any) h += '<div class="empty">タスクなし</div>';
   }
   main.innerHTML = h;
-  var ft = document.getElementById("formTitle");
-  if (ft && ui.formFor !== null) { ft.focus(); }
 }
 
 var mainEl = document.getElementById("main");

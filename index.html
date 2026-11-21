@@ -20,6 +20,7 @@
     --border: #e3e1da; --accent: #0f766e; --accent-text: #ffffff;
     --amber-bg: #fef3c7; --amber-text: #92400e; --amber-strong: #b45309;
     --danger: #dc2626;
+    --prio-red-bg: #fee2e2; --prio-yellow-bg: #fef9c3; --prio-green-bg: #dcfce7;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -27,6 +28,7 @@
       --border: #33373c; --accent: #2dd4bf; --accent-text: #0b1210;
       --amber-bg: #3a2c07; --amber-text: #fcd34d; --amber-strong: #f59e0b;
       --danger: #f87171;
+      --prio-red-bg: #3d1e22; --prio-yellow-bg: #38300b; --prio-green-bg: #0d2b1a;
     }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -51,6 +53,17 @@
   .task { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; }
   .task + .task { border-top:1px solid var(--border); }
   .task.held { background:var(--amber-bg); }
+  .task.prio-red { background:var(--prio-red-bg); }
+  .task.prio-yellow { background:var(--prio-yellow-bg); }
+  .task.prio-green { background:var(--prio-green-bg); }
+  .pbadge { display:inline-block; font-size:11px; font-weight:700; border-radius:6px; padding:1px 7px; margin-left:8px; vertical-align:2px; }
+  .pbadge.red { background:#dc2626; color:#fff; }
+  .pbadge.yellow { background:#facc15; color:#713f12; }
+  .pbadge.green { background:#86efac; color:#14532d; }
+  .pdots { display:inline-flex; gap:6px; align-items:center; }
+  .pdot { width:20px; height:20px; border-radius:999px; border:2px solid var(--border); cursor:pointer; padding:0; }
+  .pdot.on { border-color:var(--text); }
+  .mv { background:none; border:1px solid var(--border); color:var(--dim); border-radius:7px; font-size:11px; padding:3px 8px; cursor:pointer; }
   .task input[type=checkbox] { width:24px; height:24px; flex:none; margin:0; accent-color:var(--accent); cursor:pointer; }
   .t-main { flex:1; min-width:0; }
   .t-title { font-size:16px; word-break:break-word; }
@@ -101,6 +114,7 @@ var GROUPS = [
 var LABEL = {}, COLOR = {};
 GROUPS.forEach(function(g){ g.items.forEach(function(it){ LABEL[it[0]] = it[1]; COLOR[it[0]] = g.color; }); });
 var ORDER = Object.keys(LABEL);
+var PRIO = { red: {label:"最重要", color:"#dc2626"}, yellow: {label:"優先", color:"#eab308"}, green: {label:"低優先", color:"#4ade80"} };
 
 var SEED = {
   projects: [
@@ -149,7 +163,7 @@ if (!state || !state.projects) {
   state.tasks.forEach(function(t, i){ t.id = 1000 + i; });
   save();
 }
-var ui = { view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formError: "", delConfirm: null, completing: {} };
+var ui = { view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formPriority: "none", formError: "", delConfirm: null, completing: {} };
 
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
@@ -159,13 +173,16 @@ function holdCount(ts){ return ts.filter(function(t){ return t.hold; }).length; 
 
 function taskRow(t, showProj) {
   var c = COLOR[t.assignee] || "#9ca3af";
-  var cls = "task" + (t.hold ? " held" : "") + (ui.completing[t.id] ? " completing" : "");
+  var cls = "task" + (t.hold ? " held" : "") + (ui.completing[t.id] ? " completing" : "") + ((t.priority && PRIO[t.priority] && !t.hold) ? " prio-" + t.priority : "");
   return '<div class="' + cls + '">'
     + '<input type="checkbox" data-act="done" data-id="' + t.id + '"' + (ui.completing[t.id] ? " checked" : "") + '>'
     + '<div class="t-main"><span class="t-title">' + esc(t.title) + '</span>'
+    + ((t.priority && PRIO[t.priority]) ? '<span class="pbadge ' + t.priority + '">' + PRIO[t.priority].label + '</span>' : '')
     + (t.hold ? '<span class="badge-hold">保留</span>' : '')
     + '<div class="meta"><span class="pill" style="background:color-mix(in srgb, ' + c + ' 13%, transparent); color:' + c + '"><span class="dot" style="background:' + c + '"></span>' + esc(LABEL[t.assignee] || t.assignee) + '</span>'
     + (showProj ? '<span class="proj-pill">' + esc(projName(t.projectId)) + '</span>' : '')
+    + '<span class="pdots">' + ["red","yellow","green"].map(function(pc){ return '<button class="pdot' + (t.priority===pc ? ' on' : '') + '" data-act="prio" data-id="' + t.id + '" data-v="' + pc + '" style="background:' + PRIO[pc].color + '" title="優先度: ' + PRIO[pc].label + '"></button>'; }).join("") + '</span>'
+    + (showProj ? '' : '<span><button class="mv" data-act="up" data-id="' + t.id + '">↑</button> <button class="mv" data-act="down" data-id="' + t.id + '">↓</button></span>')
     + '</div></div>'
     + '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を解除' : '保留にする') + '</button>'
     + '</div>';
@@ -179,6 +196,13 @@ function addForm(p) {
     + '<button data-act="status" data-v="normal" class="' + (!isHold ? 'sel-normal' : '') + '">通常</button>'
     + '<button data-act="status" data-v="hold" class="' + (isHold ? 'sel-hold' : '') + '">保留</button></div>'
     + '<div class="f-desc">' + (isHold ? '保留として追加します。後から「保留を解除」で通常に戻せます。' : '通常のタスクとして追加します。') + '</div>';
+  h += '<div class="f-label">優先度</div><div class="pills">';
+  [["none","なし","#9ca3af"],["red","最重要","#dc2626"],["yellow","優先","#eab308"],["green","低優先","#4ade80"]].forEach(function(pr){
+    var sel = ui.formPriority === pr[0];
+    var style = sel ? ' style="background:' + pr[2] + '; color:' + (pr[0]==="yellow" ? "#713f12" : "#fff") + '; border-color:' + pr[2] + '"' : '';
+    h += '<button class="pill" data-act="fprio" data-v="' + pr[0] + '"' + style + '><span class="dot" style="background:' + pr[2] + '"></span>' + pr[1] + '</button>';
+  });
+  h += '</div>';
   GROUPS.forEach(function(g){
     h += '<div class="f-label">' + esc(g.name) + '</div><div class="pills">';
     g.items.forEach(function(it){
@@ -194,6 +218,25 @@ function addForm(p) {
   return h;
 }
 
+function moveTask(id, dir) {
+  var t = null;
+  state.tasks.forEach(function(x){ if (x.id === id) t = x; });
+  if (!t) return;
+  var idxs = [];
+  state.tasks.forEach(function(x, i){ if (x.projectId === t.projectId) idxs.push(i); });
+  var pos = idxs.indexOf(state.tasks.indexOf(t)), swap = pos + dir;
+  if (swap < 0 || swap >= idxs.length) return;
+  var tmp = state.tasks[idxs[pos]]; state.tasks[idxs[pos]] = state.tasks[idxs[swap]]; state.tasks[idxs[swap]] = tmp;
+  save(); render();
+}
+function moveProject(id, dir) {
+  var pos = -1;
+  state.projects.forEach(function(p, i){ if (p.id === id) pos = i; });
+  var swap = pos + dir;
+  if (pos < 0 || swap < 0 || swap >= state.projects.length) return;
+  var tmp = state.projects[pos]; state.projects[pos] = state.projects[swap]; state.projects[swap] = tmp;
+  save(); render();
+}
 function render() {
   var main = document.getElementById("main");
   var total = state.tasks.length, hc = holdCount(state.tasks);
@@ -205,10 +248,11 @@ function render() {
   if (ui.view === "project") {
     state.projects.forEach(function(p){
       var ts = projTasks(p.id), m = holdCount(ts);
-      h += '<section class="project"><div class="p-head">'
+      h += '<section class="project"><div class="p-head" data-head="' + p.id + '">'
         + '<button class="chev" data-act="toggle" data-id="' + p.id + '">' + (p.open ? '▼' : '▶') + '</button>'
         + '<span class="p-name">' + esc(p.name) + '</span>'
         + '<span class="p-count">残り ' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span>';
+      h += '<span><button class="mv" data-act="pup" data-id="' + p.id + '">↑</button> <button class="mv" data-act="pdown" data-id="' + p.id + '">↓</button></span>';
       if (ui.delConfirm === p.id) {
         h += '<span class="del-confirm"><button class="del-yes" data-act="delproj-yes" data-id="' + p.id + '">削除する</button><button class="del-no" data-act="delproj-no">やめる</button></span>';
       } else {
@@ -251,7 +295,15 @@ mainEl.addEventListener("input", function(ev){
 });
 mainEl.addEventListener("click", function(ev){
   var el = ev.target.closest ? ev.target.closest("[data-act]") : null;
-  if (!el) return;
+  if (!el) {
+    var head = ev.target.closest ? ev.target.closest("[data-head]") : null;
+    if (head) {
+      var hid = parseInt(head.getAttribute("data-head"), 10);
+      state.projects.forEach(function(p){ if (p.id === hid) p.open = !p.open; });
+      save(); render();
+    }
+    return;
+  }
   var act = el.getAttribute("data-act");
   var id = parseInt(el.getAttribute("data-id"), 10);
   var v = el.getAttribute("data-v");
@@ -265,15 +317,21 @@ mainEl.addEventListener("click", function(ev){
     ui.delConfirm = null; save(); render();
   }
   else if (act === "hold") { state.tasks.forEach(function(t){ if (t.id === id) t.hold = !t.hold; }); save(); render(); }
-  else if (act === "openform") { ui.formFor = id; ui.formTitle = ""; ui.formStatus = "normal"; ui.formAssignee = "unassigned"; ui.formError = ""; render(); }
+  else if (act === "openform") { ui.formFor = id; ui.formTitle = ""; ui.formStatus = "normal"; ui.formAssignee = "unassigned"; ui.formPriority = "none"; ui.formError = ""; render(); }
   else if (act === "status") { ui.formStatus = v; render(); }
   else if (act === "assignee") { ui.formAssignee = v; render(); }
   else if (act === "submittask") {
     var title = ui.formTitle.trim();
     if (!title) { ui.formError = "タスク名を入力してください"; render(); return; }
-    state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold" });
+    state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold", priority: ui.formPriority === "none" ? null : ui.formPriority });
     ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
   }
+  else if (act === "fprio") { ui.formPriority = v; render(); }
+  else if (act === "prio") { state.tasks.forEach(function(t){ if (t.id === id) t.priority = (t.priority === v ? null : v); }); save(); render(); }
+  else if (act === "up") { moveTask(id, -1); }
+  else if (act === "down") { moveTask(id, 1); }
+  else if (act === "pup") { moveProject(id, -1); }
+  else if (act === "pdown") { moveProject(id, 1); }
   else if (act === "addproj") {
     var np = document.getElementById("newProjName");
     var name = np.value.trim();

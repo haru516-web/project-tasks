@@ -6,80 +6,101 @@
 <title>プロジェクト別タスク管理</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="タスク管理">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafaf7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#131517">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fafaf7; --surface: #ffffff; --text: #1a1d21; --dim: #62666d;
+    --border: #e3e1da; --accent: #0f766e; --accent-text: #ffffff;
+    --amber-bg: #fef3c7; --amber-text: #92400e; --amber-strong: #b45309;
+    --danger: #dc2626;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131517; --surface: #1d2023; --text: #e8eaed; --dim: #9aa0a6;
+      --border: #33373c; --accent: #2dd4bf; --accent-text: #0b1210;
+      --amber-bg: #3a2c07; --amber-text: #fcd34d; --amber-strong: #f59e0b;
+      --danger: #f87171;
+    }
+  }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin:0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background:#0f172a; color:#e2e8f0; }
-  header { position:sticky; top:0; background:#0f172add; backdrop-filter: blur(8px); padding:14px 16px 10px; z-index:10; border-bottom:1px solid #1e293b; }
-  h1 { font-size:17px; margin:0 0 10px; }
-  .tabs { display:flex; gap:8px; }
-  .tab { flex:1; padding:9px; border-radius:10px; border:1px solid #334155; background:#1e293b; color:#94a3b8; font-size:14px; }
-  .tab.active { background:#0369a1; color:#fff; border-color:#0369a1; }
-  main { padding:12px 12px 40px; max-width:760px; margin:0 auto; }
-  .project { background:#1e293b; border:1px solid #334155; border-radius:14px; margin-bottom:12px; overflow:hidden; }
-  .p-head { display:flex; align-items:center; gap:8px; padding:12px; cursor:pointer; user-select:none; }
-  .p-head .arrow { color:#7dd3fc; font-size:13px; width:16px; }
-  .p-head .name { font-weight:700; font-size:15px; flex:1; word-break:break-word; }
-  .count { background:#334155; color:#cbd5e1; border-radius:999px; font-size:12px; padding:2px 9px; }
-  .del-proj { background:none; border:none; color:#64748b; font-size:13px; padding:4px 6px; }
-  .p-body { border-top:1px solid #334155; padding:8px 12px 12px; }
-  .task { display:flex; align-items:flex-start; gap:9px; padding:9px 2px; border-bottom:1px solid #263449; }
-  .task:last-of-type { border-bottom:none; }
-  .task input[type=checkbox] { width:21px; height:21px; margin-top:1px; accent-color:#38bdf8; flex:none; }
+  body { margin:0; font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; background:var(--bg); color:var(--text); }
+  main { padding:20px 16px 48px; max-width:760px; margin:0 auto; }
+  .summary { margin-bottom:16px; line-height:1.5; }
+  .summary .big { font-size:24px; font-weight:700; }
+  .summary .sub { color:var(--dim); font-size:14px; }
+  .tabs { display:flex; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:4px; gap:4px; margin-bottom:20px; }
+  .tab { flex:1; padding:8px; border:none; border-radius:9px; background:transparent; color:var(--dim); font-size:14px; transition: background-color .15s, color .15s; cursor:pointer; }
+  .tab.active { background:var(--accent); color:var(--accent-text); font-weight:600; }
+  .project { margin-bottom:22px; }
+  .p-head { display:flex; align-items:center; gap:10px; padding:2px 0 8px; }
+  .chev { width:32px; height:32px; flex:none; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--dim); font-size:12px; cursor:pointer; }
+  .p-name { font-size:18px; font-weight:700; flex:1; word-break:break-word; }
+  .p-count { color:var(--dim); font-size:13px; white-space:nowrap; }
+  .del-link { background:none; border:none; color:var(--dim); font-size:13px; cursor:pointer; padding:4px; }
+  .del-confirm { display:flex; gap:6px; align-items:center; }
+  .del-yes { background:var(--danger); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
+  .del-no { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .task { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; }
+  .task + .task { border-top:1px solid var(--border); }
+  .task.held { background:var(--amber-bg); }
+  .task input[type=checkbox] { width:24px; height:24px; flex:none; margin:0; accent-color:var(--accent); cursor:pointer; }
   .t-main { flex:1; min-width:0; }
-  .t-title { font-size:14.5px; word-break:break-word; }
-  .task.held .t-title { color:#94a3b8; }
-  .badge-hold { display:inline-block; background:#713f12; color:#fde68a; font-size:11px; border-radius:6px; padding:1px 7px; margin-left:7px; vertical-align:1px; }
-  .chip { display:inline-block; background:#0c4a6e; color:#7dd3fc; font-size:11.5px; border-radius:999px; padding:2px 9px; margin-top:4px; }
-  .proj-name { display:block; color:#94a3b8; font-size:12px; margin-top:3px; }
-  .hold-btn { background:#334155; color:#e2e8f0; border:none; border-radius:8px; font-size:12px; padding:6px 10px; flex:none; }
-  .hold-btn.on { background:#713f12; color:#fde68a; }
-  .add-form { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
-  .add-form input[type=text] { flex:1 1 160px; background:#0f172a; border:1px solid #334155; border-radius:9px; color:#e2e8f0; padding:9px; font-size:14px; }
-  .add-form select { background:#0f172a; border:1px solid #334155; border-radius:9px; color:#e2e8f0; padding:9px; font-size:13px; max-width:100%; }
-  .hold-check { display:flex; align-items:center; gap:5px; font-size:13px; color:#fde68a; padding:0 4px; }
-  .hold-check input { width:17px; height:17px; accent-color:#eab308; }
-  .add-btn { background:#0284c7; color:#fff; border:none; border-radius:9px; padding:9px 16px; font-size:14px; }
-  .new-proj { display:flex; gap:7px; margin-top:4px; }
-  .new-proj input { flex:1; background:#1e293b; border:1px solid #334155; border-radius:10px; color:#e2e8f0; padding:11px; font-size:14px; }
-  .new-proj button { background:#334155; color:#e2e8f0; border:none; border-radius:10px; padding:11px 16px; font-size:14px; }
-  .group { margin-bottom:18px; }
-  .g-head { font-size:14px; font-weight:700; color:#7dd3fc; margin:14px 2px 6px; }
-  .g-head .count { margin-left:6px; }
-  .empty { color:#64748b; font-size:13.5px; padding:10px 2px; }
-  .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:4px 12px; }
+  .t-title { font-size:16px; word-break:break-word; }
+  .task.held .t-title { color:var(--dim); }
+  .task.completing .t-title { text-decoration: line-through; color:var(--dim); }
+  .badge-hold { display:inline-block; background:var(--amber-strong); color:#fff; font-size:11px; font-weight:600; border-radius:6px; padding:1px 7px; margin-left:8px; vertical-align:2px; }
+  .meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center; }
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; border-radius:999px; padding:3px 10px; }
+  .pill .dot { width:8px; height:8px; border-radius:999px; flex:none; }
+  .proj-pill { border:1px solid var(--border); color:var(--dim); font-size:12px; border-radius:999px; padding:3px 10px; }
+  .hold-btn { flex:none; background:transparent; border:1px solid var(--border); color:var(--dim); border-radius:999px; font-size:12px; padding:6px 12px; cursor:pointer; }
+  .hold-btn.on { border-color:var(--amber-strong); color:var(--amber-text); background:var(--amber-bg); }
+  .add-row { width:100%; text-align:left; background:none; border:none; border-top:1px solid var(--border); color:var(--accent); font-size:14px; padding:12px 16px; cursor:pointer; }
+  .add-form { border-top:1px solid var(--border); padding:14px 16px; }
+  .add-form input[type=text] { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px; font-size:16px; margin-bottom:12px; }
+  .f-label { font-size:12px; color:var(--dim); margin:10px 0 6px; }
+  .toggle { display:flex; gap:8px; }
+  .toggle button { flex:1; padding:9px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--dim); font-size:14px; cursor:pointer; }
+  .toggle button.sel-normal { background:var(--accent); color:var(--accent-text); border-color:var(--accent); font-weight:600; }
+  .toggle button.sel-hold { background:var(--amber-strong); color:#fff; border-color:var(--amber-strong); font-weight:600; }
+  .f-desc { font-size:12px; color:var(--dim); margin-top:6px; }
+  .pills { display:flex; flex-wrap:wrap; gap:7px; }
+  .pills .pill { border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-size:12.5px; padding:6px 11px; }
+  .submit { width:100%; margin-top:14px; background:var(--accent); color:var(--accent-text); border:none; border-radius:10px; padding:11px; font-size:15px; font-weight:600; cursor:pointer; }
+  .submit.hold { background:var(--amber-strong); color:#fff; }
+  .error { color:var(--danger); font-size:13px; margin-top:8px; }
+  .empty { color:var(--dim); font-size:14px; padding:14px 16px; }
+  .g-head { display:flex; align-items:center; gap:8px; margin:18px 0 8px; }
+  .g-head .dot { width:10px; height:10px; border-radius:999px; }
+  .g-head .g-name { font-size:18px; font-weight:700; }
+  .g-count { border:1px solid var(--border); background:var(--surface); color:var(--dim); border-radius:999px; font-size:12px; padding:2px 10px; }
+  .new-proj { display:flex; gap:8px; margin-top:6px; }
+  .new-proj input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:11px; font-size:15px; }
+  .new-proj button { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:11px 14px; font-size:14px; cursor:pointer; }
 </style>
 </head>
 <body>
-<header>
-  <h1>プロジェクト別タスク管理</h1>
-  <div class="tabs">
-    <button class="tab active" id="tabProj">プロジェクト別</button>
-    <button class="tab" id="tabAssignee">担当別</button>
-  </div>
-</header>
 <main id="main"></main>
 
 <script>
-var ASSIGNEES = [
-  ["pc1-codex","PC1（自宅）・Codex"],
-  ["pc1-claude","PC1（自宅）・Claude"],
-  ["pc1-muse","PC1（自宅）・Muse（今後）"],
-  ["pc2-codex","PC2（持ち運び）・Codex"],
-  ["pc2-claude","PC2（持ち運び）・Claude"],
-  ["pc2-muse","PC2（持ち運び）・Muse"],
-  ["mobile-kodama","モバイル・Muse こだま"],
-  ["mobile-sensei","モバイル・Muse 先生"],
-  ["muse-hub","Muse（ハブ）"],
-  ["self","あなた"],
-  ["unassigned","未定"]
+var GROUPS = [
+  { name: "PC1", color: "#3b6ea5", items: [["pc1-codex","PC1（自宅）・Codex"],["pc1-claude","PC1（自宅）・Claude"],["pc1-muse","PC1（自宅）・Muse（今後）"]] },
+  { name: "PC2", color: "#0f766e", items: [["pc2-codex","PC2（持ち運び）・Codex"],["pc2-claude","PC2（持ち運び）・Claude"],["pc2-muse","PC2（持ち運び）・Muse"]] },
+  { name: "モバイル", color: "#b45309", items: [["mobile-kodama","モバイル・Muse こだま"],["mobile-sensei","モバイル・Muse 先生"]] },
+  { name: "その他", color: "#6b7280", items: [["muse-hub","Muse（ハブ）"],["self","あなた（ユーザー本人）"]] },
+  { name: "未定", color: "#9ca3af", items: [["unassigned","未定"]] }
 ];
-function assigneeLabel(k){ for (var i=0;i<ASSIGNEES.length;i++) if (ASSIGNEES[i][0]===k) return ASSIGNEES[i][1]; return k; }
+var LABEL = {}, COLOR = {};
+GROUPS.forEach(function(g){ g.items.forEach(function(it){ LABEL[it[0]] = it[1]; COLOR[it[0]] = g.color; }); });
+var ORDER = Object.keys(LABEL);
 
 var SEED = {
   projects: [
@@ -122,111 +143,138 @@ var SEED = {
 
 var KEY = "projectTasksV1";
 var state;
-try {
-  var raw = localStorage.getItem(KEY);
-  state = raw ? JSON.parse(raw) : null;
-} catch(e) { state = null; }
+try { state = JSON.parse(localStorage.getItem(KEY) || "null"); } catch(e) { state = null; }
 if (!state || !state.projects) {
   state = JSON.parse(JSON.stringify(SEED));
-  var base = 1000;
-  state.tasks.forEach(function(t, i){ t.id = base + i; });
+  state.tasks.forEach(function(t, i){ t.id = 1000 + i; });
   save();
 }
-var view = "project";
+var ui = { view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formError: "", delConfirm: null, completing: {} };
 
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function projTasks(pid){ return state.tasks.filter(function(t){ return t.projectId === pid; }); }
 function projName(pid){ for (var i=0;i<state.projects.length;i++) if (state.projects[i].id===pid) return state.projects[i].name; return ""; }
+function holdCount(ts){ return ts.filter(function(t){ return t.hold; }).length; }
 
 function taskRow(t, showProj) {
-  var h = '<div class="task' + (t.hold ? ' held' : '') + '">'
-    + '<input type="checkbox" data-act="done" data-id="' + t.id + '">'
+  var c = COLOR[t.assignee] || "#9ca3af";
+  var cls = "task" + (t.hold ? " held" : "") + (ui.completing[t.id] ? " completing" : "");
+  return '<div class="' + cls + '">'
+    + '<input type="checkbox" data-act="done" data-id="' + t.id + '"' + (ui.completing[t.id] ? " checked" : "") + '>'
     + '<div class="t-main"><span class="t-title">' + esc(t.title) + '</span>'
     + (t.hold ? '<span class="badge-hold">保留</span>' : '')
-    + '<br><span class="chip">' + esc(assigneeLabel(t.assignee)) + '</span>'
-    + (showProj ? '<span class="proj-name">' + esc(projName(t.projectId)) + '</span>' : '')
-    + '</div>'
-    + '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を戻す' : '保留') + '</button>'
+    + '<div class="meta"><span class="pill" style="background:color-mix(in srgb, ' + c + ' 13%, transparent); color:' + c + '"><span class="dot" style="background:' + c + '"></span>' + esc(LABEL[t.assignee] || t.assignee) + '</span>'
+    + (showProj ? '<span class="proj-pill">' + esc(projName(t.projectId)) + '</span>' : '')
+    + '</div></div>'
+    + '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を解除' : '保留にする') + '</button>'
     + '</div>';
+}
+
+function addForm(p) {
+  var isHold = ui.formStatus === "hold";
+  var h = '<div class="add-form">'
+    + '<input type="text" id="formTitle" placeholder="タスク名" value="' + esc(ui.formTitle) + '">'
+    + '<div class="f-label">状態</div><div class="toggle">'
+    + '<button data-act="status" data-v="normal" class="' + (!isHold ? 'sel-normal' : '') + '">通常</button>'
+    + '<button data-act="status" data-v="hold" class="' + (isHold ? 'sel-hold' : '') + '">保留</button></div>'
+    + '<div class="f-desc">' + (isHold ? '保留として追加します。後から「保留を解除」で通常に戻せます。' : '通常のタスクとして追加します。') + '</div>';
+  GROUPS.forEach(function(g){
+    h += '<div class="f-label">' + esc(g.name) + '</div><div class="pills">';
+    g.items.forEach(function(it){
+      var sel = ui.formAssignee === it[0];
+      var style = sel ? ' style="background:' + g.color + '; color:#fff; border-color:' + g.color + '"' : '';
+      h += '<button class="pill" data-act="assignee" data-v="' + it[0] + '"' + style + '>' + esc(it[1]) + '</button>';
+    });
+    h += '</div>';
+  });
+  h += '<button class="submit' + (isHold ? ' hold' : '') + '" data-act="submittask" data-id="' + p.id + '">' + (isHold ? '保留として追加' : 'タスクを追加') + '</button>';
+  if (ui.formError) h += '<div class="error">' + esc(ui.formError) + '</div>';
+  h += '</div>';
   return h;
 }
 
 function render() {
   var main = document.getElementById("main");
-  document.getElementById("tabProj").className = "tab" + (view==="project" ? " active" : "");
-  document.getElementById("tabAssignee").className = "tab" + (view==="assignee" ? " active" : "");
-  var h = "";
-  if (view === "project") {
+  var total = state.tasks.length, hc = holdCount(state.tasks);
+  var h = '<div class="summary"><span class="big">残っているタスク ' + total + ' 件</span><br>'
+    + '<span class="sub">（通常 ' + (total - hc) + ' 件・保留 ' + hc + ' 件）／ ' + state.projects.length + ' プロジェクト</span></div>'
+    + '<div class="tabs"><button class="tab' + (ui.view==="project" ? ' active' : '') + '" data-act="tab" data-v="project">プロジェクト別</button>'
+    + '<button class="tab' + (ui.view==="assignee" ? ' active' : '') + '" data-act="tab" data-v="assignee">担当別</button></div>';
+
+  if (ui.view === "project") {
     state.projects.forEach(function(p){
-      var ts = projTasks(p.id);
-      h += '<section class="project"><div class="p-head" data-act="toggle" data-id="' + p.id + '">'
-        + '<span class="arrow">' + (p.open ? '▾' : '▸') + '</span>'
-        + '<span class="name">' + esc(p.name) + '</span>'
-        + '<span class="count">' + ts.length + '</span>'
-        + '<button class="del-proj" data-act="delproj" data-id="' + p.id + '">削除</button></div>';
+      var ts = projTasks(p.id), m = holdCount(ts);
+      h += '<section class="project"><div class="p-head">'
+        + '<button class="chev" data-act="toggle" data-id="' + p.id + '">' + (p.open ? '▼' : '▶') + '</button>'
+        + '<span class="p-name">' + esc(p.name) + '</span>'
+        + '<span class="p-count">残り ' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span>';
+      if (ui.delConfirm === p.id) {
+        h += '<span class="del-confirm"><button class="del-yes" data-act="delproj-yes" data-id="' + p.id + '">削除する</button><button class="del-no" data-act="delproj-no">やめる</button></span>';
+      } else {
+        h += '<button class="del-link" data-act="delproj" data-id="' + p.id + '">削除</button>';
+      }
+      h += '</div>';
       if (p.open) {
-        h += '<div class="p-body">';
+        h += '<div class="card">';
         if (!ts.length) h += '<div class="empty">タスクなし</div>';
         ts.forEach(function(t){ h += taskRow(t, false); });
-        h += '<div class="add-form">'
-          + '<input type="text" id="nt-' + p.id + '" placeholder="新しいタスク">'
-          + '<select id="na-' + p.id + '">'
-          + ASSIGNEES.map(function(a){ return '<option value="' + a[0] + '">' + esc(a[1]) + '</option>'; }).join("")
-          + '</select>'
-          + '<label class="hold-check"><input type="checkbox" id="nh-' + p.id + '">保留</label>'
-          + '<button class="add-btn" data-act="addtask" data-id="' + p.id + '">追加</button>'
-          + '</div></div>';
+        if (ui.formFor === p.id) h += addForm(p);
+        else h += '<button class="add-row" data-act="openform" data-id="' + p.id + '">＋ タスクを追加</button>';
+        h += '</div>';
       }
       h += '</section>';
     });
     h += '<div class="new-proj"><input type="text" id="newProjName" placeholder="新しいプロジェクト名"><button data-act="addproj">プロジェクト追加</button></div>';
   } else {
     var any = false;
-    ASSIGNEES.forEach(function(a){
-      var ts = state.tasks.filter(function(t){ return t.assignee === a[0]; });
+    ORDER.forEach(function(k){
+      var ts = state.tasks.filter(function(t){ return t.assignee === k; });
       if (!ts.length) return;
       any = true;
-      h += '<div class="group"><div class="g-head">' + esc(a[1]) + '<span class="count">' + ts.length + '</span></div><div class="card">';
+      var m = holdCount(ts), c = COLOR[k];
+      h += '<div class="g-head"><span class="dot" style="background:' + c + '"></span><span class="g-name">' + esc(LABEL[k]) + '</span>'
+        + '<span class="g-count">' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span></div><div class="card">';
       ts.forEach(function(t){ h += taskRow(t, true); });
-      h += '</div></div>';
+      h += '</div>';
     });
     if (!any) h += '<div class="empty">タスクなし</div>';
   }
   main.innerHTML = h;
+  var ft = document.getElementById("formTitle");
+  if (ft && ui.formFor !== null) { ft.focus(); }
 }
 
-document.getElementById("tabProj").addEventListener("click", function(){ view = "project"; render(); });
-document.getElementById("tabAssignee").addEventListener("click", function(){ view = "assignee"; render(); });
-
-document.getElementById("main").addEventListener("click", function(ev){
-  var el = ev.target;
-  var act = el.getAttribute && el.getAttribute("data-act");
-  if (!act) return;
+var mainEl = document.getElementById("main");
+mainEl.addEventListener("input", function(ev){
+  if (ev.target.id === "formTitle") ui.formTitle = ev.target.value;
+});
+mainEl.addEventListener("click", function(ev){
+  var el = ev.target.closest ? ev.target.closest("[data-act]") : null;
+  if (!el) return;
+  var act = el.getAttribute("data-act");
   var id = parseInt(el.getAttribute("data-id"), 10);
-  if (act === "toggle") {
-    if (ev.target.getAttribute("data-act") === "delproj") return;
-    state.projects.forEach(function(p){ if (p.id === id) p.open = !p.open; });
-    save(); render();
-  } else if (act === "delproj") {
-    ev.stopPropagation();
-    if (confirm("このプロジェクトとタスクを削除しますか？")) {
-      state.projects = state.projects.filter(function(p){ return p.id !== id; });
-      state.tasks = state.tasks.filter(function(t){ return t.projectId !== id; });
-      save(); render();
-    }
-  } else if (act === "hold") {
-    state.tasks.forEach(function(t){ if (t.id === id) t.hold = !t.hold; });
-    save(); render();
-  } else if (act === "addtask") {
-    var inp = document.getElementById("nt-" + id);
-    var sel = document.getElementById("na-" + id);
-    var hc = document.getElementById("nh-" + id);
-    var title = inp.value.trim();
-    if (!title) return;
-    state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: sel.value, hold: hc.checked });
-    save(); render();
-  } else if (act === "addproj") {
+  var v = el.getAttribute("data-v");
+  if (act === "tab") { ui.view = v; render(); }
+  else if (act === "toggle") { state.projects.forEach(function(p){ if (p.id === id) p.open = !p.open; }); save(); render(); }
+  else if (act === "delproj") { ui.delConfirm = id; render(); }
+  else if (act === "delproj-no") { ui.delConfirm = null; render(); }
+  else if (act === "delproj-yes") {
+    state.projects = state.projects.filter(function(p){ return p.id !== id; });
+    state.tasks = state.tasks.filter(function(t){ return t.projectId !== id; });
+    ui.delConfirm = null; save(); render();
+  }
+  else if (act === "hold") { state.tasks.forEach(function(t){ if (t.id === id) t.hold = !t.hold; }); save(); render(); }
+  else if (act === "openform") { ui.formFor = id; ui.formTitle = ""; ui.formStatus = "normal"; ui.formAssignee = "unassigned"; ui.formError = ""; render(); }
+  else if (act === "status") { ui.formStatus = v; render(); }
+  else if (act === "assignee") { ui.formAssignee = v; render(); }
+  else if (act === "submittask") {
+    var title = ui.formTitle.trim();
+    if (!title) { ui.formError = "タスク名を入力してください"; render(); return; }
+    state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold" });
+    ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
+  }
+  else if (act === "addproj") {
     var np = document.getElementById("newProjName");
     var name = np.value.trim();
     if (!name) return;
@@ -234,13 +282,15 @@ document.getElementById("main").addEventListener("click", function(ev){
     save(); render();
   }
 });
-
-document.getElementById("main").addEventListener("change", function(ev){
+mainEl.addEventListener("change", function(ev){
   var el = ev.target;
   if (el.getAttribute && el.getAttribute("data-act") === "done") {
     var id = parseInt(el.getAttribute("data-id"), 10);
-    state.tasks = state.tasks.filter(function(t){ return t.id !== id; });
-    save(); render();
+    ui.completing[id] = true; render();
+    setTimeout(function(){
+      state.tasks = state.tasks.filter(function(t){ return t.id !== id; });
+      delete ui.completing[id]; save(); render();
+    }, 500);
   }
 });
 

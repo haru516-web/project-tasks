@@ -52,7 +52,10 @@
   .del-no { background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
   .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
   .task { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; }
-  .task + .task { border-top:1px solid var(--border); }
+  .task { border-top:1px solid var(--border); }
+  .card > div:first-child .task:first-child { border-top:none; }
+  .task.done { background:var(--surface); }
+  .task.done .t-title { text-decoration:line-through; color:var(--dim); }
   .task.held { background:var(--amber-bg); }
   .task.prio-red { background:var(--prio-red-bg); }
   .task.prio-yellow { background:var(--prio-yellow-bg); }
@@ -196,19 +199,24 @@ function holdCount(ts){ return ts.filter(function(t){ return t.hold; }).length; 
 
 function taskRow(t, showProj) {
   var c = COLOR[t.assignee] || "#9ca3af";
-  var cls = "task" + (t.hold ? " held" : "") + (ui.completing[t.id] ? " completing" : "") + ((t.priority && PRIO[t.priority] && !t.hold) ? " prio-" + t.priority : "");
-  return '<div class="' + cls + '">'
-    + '<input type="checkbox" data-act="done" data-id="' + t.id + '"' + (ui.completing[t.id] ? " checked" : "") + '>'
-    + '<div class="t-main"><span class="t-title">' + esc(t.title) + '</span>'
-    + ((t.priority && PRIO[t.priority]) ? '<span class="pbadge ' + t.priority + '">' + PRIO[t.priority].label + '</span>' : '')
-    + (t.hold ? '<span class="badge-hold">保留</span>' : '')
-    + '<div class="meta"><span class="pill" style="background:color-mix(in srgb, ' + c + ' 13%, transparent); color:' + c + '"><span class="dot" style="background:' + c + '"></span>' + esc(LABEL[t.assignee] || t.assignee) + '</span>'
-    + (showProj ? '<span class="proj-pill">' + esc(projName(t.projectId)) + '</span>' : '')
-    + '<span class="pdots">' + ["red","yellow","green"].map(function(pc){ return '<button class="pdot' + (t.priority===pc ? ' on' : '') + '" data-act="prio" data-id="' + t.id + '" data-v="' + pc + '" style="background:' + PRIO[pc].color + '" title="優先度: ' + PRIO[pc].label + '"></button>'; }).join("") + '</span>'
-    + (showProj ? '' : '<span><button class="mv" data-act="up" data-id="' + t.id + '">↑</button> <button class="mv" data-act="down" data-id="' + t.id + '">↓</button></span>')
-    + '</div></div>'
-    + '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を解除' : '保留にする') + '</button>'
-    + '</div>';
+  var done = !!t.done;
+  var cls = "task" + (done ? " done" : (t.hold ? " held" : "")) + ((t.priority && PRIO[t.priority] && !t.hold && !done) ? " prio-" + t.priority : "");
+  var h = '<div class="' + cls + '">'
+    + '<input type="checkbox" data-act="done" data-id="' + t.id + '"' + (done ? " checked" : "") + '>'
+    + '<div class="t-main"><span class="t-title">' + esc(t.title) + '</span>';
+  if (!done && t.priority && PRIO[t.priority]) h += '<span class="pbadge ' + t.priority + '">' + PRIO[t.priority].label + '</span>';
+  if (!done && t.hold) h += '<span class="badge-hold">保留</span>';
+  h += '<div class="meta"><span class="pill" style="background:color-mix(in srgb, ' + c + ' 13%, transparent); color:' + c + '"><span class="dot" style="background:' + c + '"></span>' + esc(LABEL[t.assignee] || t.assignee) + '</span>';
+  if (showProj) h += '<span class="proj-pill">' + esc(projName(t.projectId)) + '</span>';
+  if (!done) {
+    h += '<span class="pdots">' + ["red","yellow","green"].map(function(pc){ return '<button class="pdot' + (t.priority===pc ? ' on' : '') + '" data-act="prio" data-id="' + t.id + '" data-v="' + pc + '" style="background:' + PRIO[pc].color + '" title="優先度: ' + PRIO[pc].label + '"></button>'; }).join("") + '</span>';
+    if (!showProj) h += '<span><button class="mv" data-act="up" data-id="' + t.id + '">↑</button> <button class="mv" data-act="down" data-id="' + t.id + '">↓</button></span>';
+  }
+  h += '<button class="memo-del" data-act="deltask" data-id="' + t.id + '">削除</button>';
+  h += '</div></div>';
+  if (!done) h += '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を解除' : '保留にする') + '</button>';
+  h += '</div>';
+  return h;
 }
 
 function memoSection(p) {
@@ -264,12 +272,17 @@ function sortByPrio(ts) {
 function moveTask(id, dir) {
   var t = null;
   state.tasks.forEach(function(x){ if (x.id === id) t = x; });
-  if (!t) return;
-  var idxs = [];
-  state.tasks.forEach(function(x, i){ if (x.projectId === t.projectId) idxs.push(i); });
-  var pos = idxs.indexOf(state.tasks.indexOf(t)), swap = pos + dir;
-  if (swap < 0 || swap >= idxs.length) return;
-  var tmp = state.tasks[idxs[pos]]; state.tasks[idxs[pos]] = state.tasks[idxs[swap]]; state.tasks[idxs[swap]] = tmp;
+  if (!t || t.done) return;
+  var pid = t.projectId;
+  var act = sortByPrio(state.tasks.filter(function(x){ return x.projectId === pid && !x.done; }));
+  var pos = -1;
+  act.forEach(function(x, i){ if (x.id === id) pos = i; });
+  var swap = pos + dir;
+  if (pos < 0 || swap < 0 || swap >= act.length) return;
+  var tmp = act[pos]; act[pos] = act[swap]; act[swap] = tmp;
+  var seq = act.concat(state.tasks.filter(function(x){ return x.projectId === pid && x.done; }));
+  var k = 0;
+  state.tasks = state.tasks.map(function(x){ return x.projectId === pid ? seq[k++] : x; });
   save(); render();
 }
 function moveProject(id, dir) {
@@ -282,7 +295,8 @@ function moveProject(id, dir) {
 }
 function render() {
   var main = document.getElementById("main");
-  var total = state.tasks.length, hc = holdCount(state.tasks);
+  var actAll = state.tasks.filter(function(t){ return !t.done; });
+  var total = actAll.length, hc = holdCount(actAll);
   var h = '<div class="summary"><span class="big">残っているタスク ' + total + ' 件</span><br>'
     + '<span class="sub">（通常 ' + (total - hc) + ' 件・保留 ' + hc + ' 件）／ ' + state.projects.length + ' プロジェクト</span></div>'
     + '<div class="tabs"><button class="tab' + (ui.view==="project" ? ' active' : '') + '" data-act="tab" data-v="project">プロジェクト別</button>'
@@ -290,12 +304,12 @@ function render() {
 
   if (ui.view === "project") {
     state.projects.forEach(function(p){
-      var ts = projTasks(p.id), m = holdCount(ts);
+      var ts = projTasks(p.id), ats = ts.filter(function(t){ return !t.done; }), m = holdCount(ats);
       h += '<section class="project" data-pid="' + p.id + '"><div class="p-head" data-head="' + p.id + '">'
         + '<button class="chev" data-act="toggle" data-id="' + p.id + '">' + (p.open ? '▼' : '▶') + '</button>'
         + '<span class="p-name">' + esc(p.name) + '</span>'
-        + (!p.open && ts.length ? '<span class="nbadge">' + ts.length + '</span>' : '')
-        + '<span class="p-count">残り ' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span>';
+        + (!p.open && ats.length ? '<span class="nbadge">' + ats.length + '</span>' : '')
+        + '<span class="p-count">残り ' + ats.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span>';
       h += '<span><button class="mv" data-act="pup" data-id="' + p.id + '">↑</button> <button class="mv" data-act="pdown" data-id="' + p.id + '">↓</button></span>';
       if (ui.delConfirm === p.id) {
         h += '<span class="del-confirm"><button class="del-yes" data-act="delproj-yes" data-id="' + p.id + '">削除する</button><button class="del-no" data-act="delproj-no">やめる</button></span>';
@@ -306,7 +320,9 @@ function render() {
       if (p.open) {
         h += '<div class="card">';
         if (!ts.length) h += '<div class="empty">タスクなし</div>';
-        sortByPrio(ts).forEach(function(t){ h += taskRow(t, false); });
+        if (ats.length) { h += '<div class="tasks-active">'; sortByPrio(ats).forEach(function(t){ h += taskRow(t, false); }); h += '</div>'; }
+        var dts = ts.filter(function(t){ return t.done; });
+        if (dts.length) { h += '<div class="tasks-done">'; dts.forEach(function(t){ h += taskRow(t, false); }); h += '</div>'; }
         h += memoSection(p);
         if (ui.formFor === p.id) h += addForm(p);
         else h += '<button class="add-row" data-act="openform" data-id="' + p.id + '">＋ タスクを追加</button>';
@@ -321,14 +337,16 @@ function render() {
       var ts = state.tasks.filter(function(t){ return t.assignee === k; });
       if (!ts.length) return;
       any = true;
-      var m = holdCount(ts), c = COLOR[k];
+      var ats = ts.filter(function(t){ return !t.done; });
+      var m = holdCount(ats), c = COLOR[k];
       var isClosed = !!closedA[k];
       h += '<div class="g-head" data-ahead="' + k + '"><button class="chev" data-act="atoggle" data-v="' + k + '">' + (isClosed ? '▶' : '▼') + '</button><span class="dot" style="background:' + c + '"></span><span class="g-name">' + esc(LABEL[k]) + '</span>'
-        + (isClosed && ts.length ? '<span class="nbadge">' + ts.length + '</span>' : '')
-        + '<span class="g-count">' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span></div>';
+        + (isClosed && ats.length ? '<span class="nbadge">' + ats.length + '</span>' : '')
+        + '<span class="g-count">' + ats.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span></div>';
       if (!isClosed) {
         h += '<div class="card">';
-        sortByPrio(ts).forEach(function(t){ h += taskRow(t, true); });
+        sortByPrio(ats).forEach(function(t){ h += taskRow(t, true); });
+        ts.filter(function(t){ return t.done; }).forEach(function(t){ h += taskRow(t, true); });
         h += '</div>';
       }
     });
@@ -386,6 +404,7 @@ mainEl.addEventListener("click", function(ev){
     state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold", priority: ui.formPriority === "none" ? null : ui.formPriority });
     ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
   }
+  else if (act === "deltask") { state.tasks = state.tasks.filter(function(t){ return t.id !== id; }); save(); render(); }
   else if (act === "openmemo") { ui.memoFor = id; ui.memoText = ""; render(); }
   else if (act === "closememo") { ui.memoFor = null; ui.memoText = ""; render(); }
   else if (act === "submitmemo") {
@@ -414,11 +433,8 @@ mainEl.addEventListener("change", function(ev){
   var el = ev.target;
   if (el.getAttribute && el.getAttribute("data-act") === "done") {
     var id = parseInt(el.getAttribute("data-id"), 10);
-    ui.completing[id] = true; render();
-    setTimeout(function(){
-      state.tasks = state.tasks.filter(function(t){ return t.id !== id; });
-      delete ui.completing[id]; save(); render();
-    }, 500);
+    state.tasks.forEach(function(t){ if (t.id === id) t.done = !t.done; });
+    save(); render();
   }
 });
 
@@ -431,7 +447,7 @@ mainEl.addEventListener("pointerdown", function(ev){
   var taskEl = ev.target.closest ? ev.target.closest(".task") : null;
   var headEl = ev.target.closest ? ev.target.closest("[data-head]") : null;
   var kind = null, el = null;
-  if (taskEl && ui.view === "project") { kind = "task"; el = taskEl; }
+  if (taskEl && ui.view === "project" && !taskEl.classList.contains("done")) { kind = "task"; el = taskEl; }
   else if (headEl) { kind = "project"; el = headEl.closest(".project"); }
   if (!el) return;
   pendingDrag = { kind: kind, el: el, sx: ev.clientX, sy: ev.clientY, timer: null };
@@ -491,6 +507,7 @@ function endDrag(){
     if (pid !== null && ids.length) {
       var byId = {}; state.tasks.forEach(function(t){ byId[t.id] = t; });
       var seq = ids.map(function(i){ return byId[i]; }).filter(Boolean);
+      seq = seq.concat(state.tasks.filter(function(x){ return x.projectId === pid && x.done; }));
       var k = 0;
       state.tasks = state.tasks.map(function(t){ return t.projectId === pid ? seq[k++] : t; });
       save();

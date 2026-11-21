@@ -45,6 +45,7 @@
   .chev { width:32px; height:32px; flex:none; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--dim); font-size:12px; cursor:pointer; }
   .p-name { font-size:18px; font-weight:700; flex:1; word-break:break-word; }
   .p-count { color:var(--dim); font-size:13px; white-space:nowrap; }
+  .nbadge { flex:none; min-width:23px; height:23px; border-radius:999px; background:#dc2626; color:#fff; font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; padding:0 7px; }
   .del-link { background:none; border:none; color:var(--dim); font-size:13px; cursor:pointer; padding:4px; }
   .del-confirm { display:flex; gap:6px; align-items:center; }
   .del-yes { background:var(--danger); color:#fff; border:none; border-radius:8px; padding:6px 12px; font-size:13px; cursor:pointer; }
@@ -261,6 +262,7 @@ function render() {
       h += '<section class="project" data-pid="' + p.id + '"><div class="p-head" data-head="' + p.id + '">'
         + '<button class="chev" data-act="toggle" data-id="' + p.id + '">' + (p.open ? '▼' : '▶') + '</button>'
         + '<span class="p-name">' + esc(p.name) + '</span>'
+        + (!p.open && ts.length ? '<span class="nbadge">' + ts.length + '</span>' : '')
         + '<span class="p-count">残り ' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span>';
       h += '<span><button class="mv" data-act="pup" data-id="' + p.id + '">↑</button> <button class="mv" data-act="pdown" data-id="' + p.id + '">↓</button></span>';
       if (ui.delConfirm === p.id) {

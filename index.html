@@ -169,6 +169,11 @@ if (!state || !state.projects) {
   state.tasks.forEach(function(t, i){ t.id = 1000 + i; });
   save();
 }
+var UIKEY = "projectTasksUiV1";
+var savedUi = {};
+try { savedUi = JSON.parse(localStorage.getItem(UIKEY) || "{}"); } catch(e) { savedUi = {}; }
+var closedA = savedUi.closedA || {};
+function saveUi(){ try { localStorage.setItem(UIKEY, JSON.stringify({ closedA: closedA })); } catch(e){} }
 var ui = { view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formPriority: "none", formError: "", delConfirm: null, completing: {} };
 
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
@@ -289,10 +294,15 @@ function render() {
       if (!ts.length) return;
       any = true;
       var m = holdCount(ts), c = COLOR[k];
-      h += '<div class="g-head"><span class="dot" style="background:' + c + '"></span><span class="g-name">' + esc(LABEL[k]) + '</span>'
-        + '<span class="g-count">' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span></div><div class="card">';
-      sortByPrio(ts).forEach(function(t){ h += taskRow(t, true); });
-      h += '</div>';
+      var isClosed = !!closedA[k];
+      h += '<div class="g-head" data-ahead="' + k + '"><button class="chev" data-act="atoggle" data-v="' + k + '">' + (isClosed ? '▶' : '▼') + '</button><span class="dot" style="background:' + c + '"></span><span class="g-name">' + esc(LABEL[k]) + '</span>'
+        + (isClosed && ts.length ? '<span class="nbadge">' + ts.length + '</span>' : '')
+        + '<span class="g-count">' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span></div>';
+      if (!isClosed) {
+        h += '<div class="card">';
+        sortByPrio(ts).forEach(function(t){ h += taskRow(t, true); });
+        h += '</div>';
+      }
     });
     if (!any) h += '<div class="empty">タスクなし</div>';
   }
@@ -309,6 +319,13 @@ mainEl.addEventListener("click", function(ev){
   if (suppressClick) { suppressClick = false; return; }
   var el = ev.target.closest ? ev.target.closest("[data-act]") : null;
   if (!el) {
+    var ahead = ev.target.closest ? ev.target.closest("[data-ahead]") : null;
+    if (ahead) {
+      var ak = ahead.getAttribute("data-ahead");
+      if (closedA[ak]) delete closedA[ak]; else closedA[ak] = true;
+      saveUi(); render();
+      return;
+    }
     var head = ev.target.closest ? ev.target.closest("[data-head]") : null;
     if (head) {
       var hid = parseInt(head.getAttribute("data-head"), 10);
@@ -339,6 +356,7 @@ mainEl.addEventListener("click", function(ev){
     state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold", priority: ui.formPriority === "none" ? null : ui.formPriority });
     ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
   }
+  else if (act === "atoggle") { if (closedA[v]) delete closedA[v]; else closedA[v] = true; saveUi(); render(); }
   else if (act === "closeform") { ui.formFor = null; ui.formTitle = ""; ui.formError = ""; render(); }
   else if (act === "fprio") { ui.formPriority = v; render(); }
   else if (act === "prio") { state.tasks.forEach(function(t){ if (t.id === id) t.priority = (t.priority === v ? null : v); }); save(); render(); }

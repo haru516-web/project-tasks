@@ -97,6 +97,16 @@
   .g-head .dot { width:10px; height:10px; border-radius:999px; }
   .g-head .g-name { font-size:18px; font-weight:700; }
   .g-count { border:1px solid var(--border); background:var(--surface); color:var(--dim); border-radius:999px; font-size:12px; padding:2px 10px; }
+  .memo-sec { border-top:1px solid var(--border); padding:10px 16px 12px; }
+  .memo-head { font-size:12px; color:var(--dim); font-weight:700; letter-spacing:.04em; margin-bottom:6px; }
+  .memo-item { display:flex; gap:8px; align-items:flex-start; padding:6px 0; }
+  .memo-text { flex:1; font-size:14px; white-space:pre-wrap; word-break:break-word; line-height:1.55; }
+  .memo-del { flex:none; background:none; border:1px solid var(--border); color:var(--dim); border-radius:7px; font-size:11px; padding:3px 8px; cursor:pointer; }
+  .memo-add-row { background:none; border:none; color:var(--accent); font-size:13px; padding:4px 0; cursor:pointer; }
+  .memo-form textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:9px; font-size:15px; font-family:inherit; min-height:64px; }
+  .memo-form .row { display:flex; gap:8px; margin-top:8px; }
+  .memo-form .add { flex:1; background:var(--accent); color:var(--accent-text); border:none; border-radius:9px; padding:9px; font-size:14px; font-weight:600; cursor:pointer; }
+  .memo-form .cancel { background:transparent; border:1px solid var(--border); color:var(--dim); border-radius:9px; padding:9px 14px; font-size:14px; cursor:pointer; }
   .new-proj { display:flex; gap:8px; margin-top:6px; }
   .new-proj input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:11px; font-size:15px; }
   .new-proj button { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:11px 14px; font-size:14px; cursor:pointer; }
@@ -164,9 +174,11 @@ var SEED = {
 var KEY = "projectTasksV1";
 var state;
 try { state = JSON.parse(localStorage.getItem(KEY) || "null"); } catch(e) { state = null; }
+if (state && !state.memos) state.memos = [];
 if (!state || !state.projects) {
   state = JSON.parse(JSON.stringify(SEED));
   state.tasks.forEach(function(t, i){ t.id = 1000 + i; });
+  state.memos = [];
   save();
 }
 var UIKEY = "projectTasksUiV1";
@@ -174,7 +186,7 @@ var savedUi = {};
 try { savedUi = JSON.parse(localStorage.getItem(UIKEY) || "{}"); } catch(e) { savedUi = {}; }
 var closedA = savedUi.closedA || {};
 function saveUi(){ try { localStorage.setItem(UIKEY, JSON.stringify({ closedA: closedA })); } catch(e){} }
-var ui = { view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formPriority: "none", formError: "", delConfirm: null, completing: {} };
+var ui = { memoFor: null, memoText: "", view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formPriority: "none", formError: "", delConfirm: null, completing: {} };
 
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
@@ -199,6 +211,21 @@ function taskRow(t, showProj) {
     + '</div>';
 }
 
+function memoSection(p) {
+  var ms = state.memos.filter(function(m){ return m.projectId === p.id; });
+  var h = '<div class="memo-sec"><div class="memo-head">メモ</div>';
+  ms.forEach(function(m){
+    h += '<div class="memo-item"><span class="memo-text">' + esc(m.text) + '</span><button class="memo-del" data-act="delmemo" data-id="' + m.id + '">削除</button></div>';
+  });
+  if (ui.memoFor === p.id) {
+    h += '<div class="memo-form"><textarea id="memoText" placeholder="メモを入力">' + esc(ui.memoText) + '</textarea>'
+      + '<div class="row"><button class="add" data-act="submitmemo" data-id="' + p.id + '">メモを追加</button><button class="cancel" data-act="closememo">やめる</button></div></div>';
+  } else {
+    h += '<button class="memo-add-row" data-act="openmemo" data-id="' + p.id + '">＋ メモを追加</button>';
+  }
+  h += '</div>';
+  return h;
+}
 function addForm(p) {
   var isHold = ui.formStatus === "hold";
   var h = '<div class="add-form">'
@@ -280,6 +307,7 @@ function render() {
         h += '<div class="card">';
         if (!ts.length) h += '<div class="empty">タスクなし</div>';
         sortByPrio(ts).forEach(function(t){ h += taskRow(t, false); });
+        h += memoSection(p);
         if (ui.formFor === p.id) h += addForm(p);
         else h += '<button class="add-row" data-act="openform" data-id="' + p.id + '">＋ タスクを追加</button>';
         h += '</div>';
@@ -314,6 +342,7 @@ function render() {
 var mainEl = document.getElementById("main");
 mainEl.addEventListener("input", function(ev){
   if (ev.target.id === "formTitle") ui.formTitle = ev.target.value;
+  if (ev.target.id === "memoText") ui.memoText = ev.target.value;
 });
 mainEl.addEventListener("click", function(ev){
   if (suppressClick) { suppressClick = false; return; }
@@ -344,6 +373,7 @@ mainEl.addEventListener("click", function(ev){
   else if (act === "delproj-yes") {
     state.projects = state.projects.filter(function(p){ return p.id !== id; });
     state.tasks = state.tasks.filter(function(t){ return t.projectId !== id; });
+    state.memos = state.memos.filter(function(m){ return m.projectId !== id; });
     ui.delConfirm = null; save(); render();
   }
   else if (act === "hold") { state.tasks.forEach(function(t){ if (t.id === id) t.hold = !t.hold; }); save(); render(); }
@@ -356,6 +386,14 @@ mainEl.addEventListener("click", function(ev){
     state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold", priority: ui.formPriority === "none" ? null : ui.formPriority });
     ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
   }
+  else if (act === "openmemo") { ui.memoFor = id; ui.memoText = ""; render(); }
+  else if (act === "closememo") { ui.memoFor = null; ui.memoText = ""; render(); }
+  else if (act === "submitmemo") {
+    var mtext = ui.memoText.trim();
+    if (mtext) { state.memos.push({ id: Date.now(), projectId: id, text: mtext }); save(); }
+    ui.memoFor = null; ui.memoText = ""; render();
+  }
+  else if (act === "delmemo") { state.memos = state.memos.filter(function(m){ return m.id !== id; }); save(); render(); }
   else if (act === "atoggle") { if (closedA[v]) delete closedA[v]; else closedA[v] = true; saveUi(); render(); }
   else if (act === "closeform") { ui.formFor = null; ui.formTitle = ""; ui.formError = ""; render(); }
   else if (act === "fprio") { ui.formPriority = v; render(); }

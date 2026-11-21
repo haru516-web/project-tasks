@@ -98,6 +98,10 @@
   .new-proj { display:flex; gap:8px; margin-top:6px; }
   .new-proj input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:11px; font-size:15px; }
   .new-proj button { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:11px 14px; font-size:14px; cursor:pointer; }
+  .dragging { position:relative; z-index:30; box-shadow:0 10px 28px rgba(0,0,0,.28); }
+  body.proj-drag .project .card { display:none; }
+  body.proj-drag .new-proj { display:none; }
+  .project.dragging .p-head { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:6px 10px; box-shadow:0 10px 28px rgba(0,0,0,.25); }
 </style>
 </head>
 <body>
@@ -218,6 +222,10 @@ function addForm(p) {
   return h;
 }
 
+function sortByPrio(ts) {
+  var rank = { red: 0, yellow: 1, green: 2 };
+  return ts.slice().sort(function(a, b){ return (rank[a.priority] !== undefined ? rank[a.priority] : 3) - (rank[b.priority] !== undefined ? rank[b.priority] : 3); });
+}
 function moveTask(id, dir) {
   var t = null;
   state.tasks.forEach(function(x){ if (x.id === id) t = x; });
@@ -248,7 +256,7 @@ function render() {
   if (ui.view === "project") {
     state.projects.forEach(function(p){
       var ts = projTasks(p.id), m = holdCount(ts);
-      h += '<section class="project"><div class="p-head" data-head="' + p.id + '">'
+      h += '<section class="project" data-pid="' + p.id + '"><div class="p-head" data-head="' + p.id + '">'
         + '<button class="chev" data-act="toggle" data-id="' + p.id + '">' + (p.open ? '▼' : '▶') + '</button>'
         + '<span class="p-name">' + esc(p.name) + '</span>'
         + '<span class="p-count">残り ' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span>';
@@ -262,7 +270,7 @@ function render() {
       if (p.open) {
         h += '<div class="card">';
         if (!ts.length) h += '<div class="empty">タスクなし</div>';
-        ts.forEach(function(t){ h += taskRow(t, false); });
+        sortByPrio(ts).forEach(function(t){ h += taskRow(t, false); });
         if (ui.formFor === p.id) h += addForm(p);
         else h += '<button class="add-row" data-act="openform" data-id="' + p.id + '">＋ タスクを追加</button>';
         h += '</div>';
@@ -279,7 +287,7 @@ function render() {
       var m = holdCount(ts), c = COLOR[k];
       h += '<div class="g-head"><span class="dot" style="background:' + c + '"></span><span class="g-name">' + esc(LABEL[k]) + '</span>'
         + '<span class="g-count">' + ts.length + ' 件' + (m ? '（保留 ' + m + '）' : '') + '</span></div><div class="card">';
-      ts.forEach(function(t){ h += taskRow(t, true); });
+      sortByPrio(ts).forEach(function(t){ h += taskRow(t, true); });
       h += '</div>';
     });
     if (!any) h += '<div class="empty">タスクなし</div>';
@@ -294,6 +302,7 @@ mainEl.addEventListener("input", function(ev){
   if (ev.target.id === "formTitle") ui.formTitle = ev.target.value;
 });
 mainEl.addEventListener("click", function(ev){
+  if (suppressClick) { suppressClick = false; return; }
   var el = ev.target.closest ? ev.target.closest("[data-act]") : null;
   if (!el) {
     var head = ev.target.closest ? ev.target.closest("[data-head]") : null;
@@ -351,6 +360,91 @@ mainEl.addEventListener("change", function(ev){
     }, 500);
   }
 });
+
+var suppressClick = false;
+var pendingDrag = null, activeDrag = null;
+function clearPending(){ if (pendingDrag) { clearTimeout(pendingDrag.timer); pendingDrag = null; } }
+mainEl.addEventListener("pointerdown", function(ev){
+  if (pendingDrag || activeDrag) return;
+  if (ev.target.closest && ev.target.closest("button, input, select, textarea, a")) return;
+  var taskEl = ev.target.closest ? ev.target.closest(".task") : null;
+  var headEl = ev.target.closest ? ev.target.closest("[data-head]") : null;
+  var kind = null, el = null;
+  if (taskEl && ui.view === "project") { kind = "task"; el = taskEl; }
+  else if (headEl) { kind = "project"; el = headEl.closest(".project"); }
+  if (!el) return;
+  pendingDrag = { kind: kind, el: el, sx: ev.clientX, sy: ev.clientY, timer: null };
+  var pid = ev.pointerId;
+  pendingDrag.timer = setTimeout(function(){ startDrag(pid); }, 350);
+});
+function startDrag(pointerId){
+  if (!pendingDrag) return;
+  var pd = pendingDrag; pendingDrag = null;
+  pd.el.classList.add("dragging");
+  pd.el.style.touchAction = "none";
+  try { pd.el.setPointerCapture(pointerId); } catch(e){}
+  if (pd.kind === "project") document.body.classList.add("proj-drag");
+  activeDrag = { kind: pd.kind, el: pd.el, itemSel: pd.kind === "task" ? ".task" : ".project", sy: pd.sy, dy: 0 };
+  if (navigator.vibrate) { try { navigator.vibrate(10); } catch(e){} }
+}
+window.addEventListener("pointermove", function(ev){
+  if (pendingDrag) {
+    if (Math.abs(ev.clientX - pendingDrag.sx) > 10 || Math.abs(ev.clientY - pendingDrag.sy) > 10) clearPending();
+    return;
+  }
+  if (!activeDrag) return;
+  ev.preventDefault();
+  var d = activeDrag, el = d.el;
+  d.dy = ev.clientY - d.sy;
+  el.style.transform = "translateY(" + d.dy + "px)";
+  var center = el.offsetTop + el.offsetHeight / 2 + d.dy;
+  var next = el.nextElementSibling;
+  while (next && !next.matches(d.itemSel)) next = next.nextElementSibling;
+  if (next && center > next.offsetTop + next.offsetHeight / 2) {
+    d.sy += next.offsetHeight; d.dy = ev.clientY - d.sy;
+    next.parentElement.insertBefore(el, next.nextElementSibling);
+    el.style.transform = "translateY(" + d.dy + "px)";
+    return;
+  }
+  var prev = el.previousElementSibling;
+  while (prev && !prev.matches(d.itemSel)) prev = prev.previousElementSibling;
+  if (prev && center < prev.offsetTop + prev.offsetHeight / 2) {
+    d.sy -= prev.offsetHeight; d.dy = ev.clientY - d.sy;
+    prev.parentElement.insertBefore(el, prev);
+    el.style.transform = "translateY(" + d.dy + "px)";
+  }
+}, { passive: false });
+function endDrag(){
+  if (pendingDrag) { clearPending(); return; }
+  if (!activeDrag) return;
+  var d = activeDrag; activeDrag = null;
+  document.body.classList.remove("proj-drag");
+  suppressClick = true;
+  setTimeout(function(){ suppressClick = false; }, 80);
+  if (d.kind === "task") {
+    var card = d.el.parentElement;
+    var sec = d.el.closest(".project");
+    var pid = sec ? parseInt(sec.getAttribute("data-pid"), 10) : null;
+    var ids = [];
+    card.querySelectorAll(".task").forEach(function(n){ var inp = n.querySelector("[data-act='done']"); if (inp) ids.push(parseInt(inp.getAttribute("data-id"), 10)); });
+    if (pid !== null && ids.length) {
+      var byId = {}; state.tasks.forEach(function(t){ byId[t.id] = t; });
+      var seq = ids.map(function(i){ return byId[i]; }).filter(Boolean);
+      var k = 0;
+      state.tasks = state.tasks.map(function(t){ return t.projectId === pid ? seq[k++] : t; });
+      save();
+    }
+  } else {
+    var pids = [];
+    mainEl.querySelectorAll(".project").forEach(function(n){ pids.push(parseInt(n.getAttribute("data-pid"), 10)); });
+    var byPid = {}; state.projects.forEach(function(p){ byPid[p.id] = p; });
+    var nseq = pids.map(function(i){ return byPid[i]; }).filter(Boolean);
+    if (nseq.length === state.projects.length) { state.projects = nseq; save(); }
+  }
+  render();
+}
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointercancel", endDrag);
 
 render();
 </script>

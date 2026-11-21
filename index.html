@@ -90,6 +90,7 @@
   .submit { width:100%; margin-top:14px; background:var(--accent); color:var(--accent-text); border:none; border-radius:10px; padding:11px; font-size:15px; font-weight:600; cursor:pointer; }
   .submit.hold { background:var(--amber-strong); color:#fff; }
   .error { color:var(--danger); font-size:13px; margin-top:8px; }
+  .cancel-btn { width:100%; margin-top:8px; background:transparent; border:1px solid var(--border); color:var(--dim); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; }
   .empty { color:var(--dim); font-size:14px; padding:14px 16px; }
   .g-head { display:flex; align-items:center; gap:8px; margin:18px 0 8px; }
   .g-head .dot { width:10px; height:10px; border-radius:999px; }
@@ -217,6 +218,7 @@ function addForm(p) {
     h += '</div>';
   });
   h += '<button class="submit' + (isHold ? ' hold' : '') + '" data-act="submittask" data-id="' + p.id + '">' + (isHold ? '保留として追加' : 'タスクを追加') + '</button>';
+  h += '<button class="cancel-btn" data-act="closeform">やめる</button>';
   if (ui.formError) h += '<div class="error">' + esc(ui.formError) + '</div>';
   h += '</div>';
   return h;
@@ -335,6 +337,7 @@ mainEl.addEventListener("click", function(ev){
     state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold", priority: ui.formPriority === "none" ? null : ui.formPriority });
     ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
   }
+  else if (act === "closeform") { ui.formFor = null; ui.formTitle = ""; ui.formError = ""; render(); }
   else if (act === "fprio") { ui.formPriority = v; render(); }
   else if (act === "prio") { state.tasks.forEach(function(t){ if (t.id === id) t.priority = (t.priority === v ? null : v); }); save(); render(); }
   else if (act === "up") { moveTask(id, -1); }

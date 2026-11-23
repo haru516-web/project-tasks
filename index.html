@@ -18,7 +18,7 @@
     color-scheme: light dark;
     --bg: #fafaf7; --surface: #ffffff; --text: #1a1d21; --dim: #62666d;
     --border: #e3e1da; --accent: #0f766e; --accent-text: #ffffff;
-    --amber-bg: #fef3c7; --amber-text: #92400e; --amber-strong: #b45309;
+    --hold-bg: #e9edf1; --hold-text: #5c6b7a; --hold-strong: #71879c;
     --danger: #dc2626;
     --prio-red-bg: #fee2e2; --prio-yellow-bg: #fef9c3; --prio-green-bg: #dcfce7;
   }
@@ -26,7 +26,7 @@
     :root {
       --bg: #131517; --surface: #1d2023; --text: #e8eaed; --dim: #9aa0a6;
       --border: #33373c; --accent: #2dd4bf; --accent-text: #0b1210;
-      --amber-bg: #3a2c07; --amber-text: #fcd34d; --amber-strong: #f59e0b;
+      --hold-bg: #252c34; --hold-text: #a7b4c0; --hold-strong: #5f7488;
       --danger: #f87171;
       --prio-red-bg: #3d1e22; --prio-yellow-bg: #38300b; --prio-green-bg: #0d2b1a;
     }
@@ -56,7 +56,7 @@
   .card > div:first-child .task:first-child { border-top:none; }
   .task.done { background:var(--surface); }
   .task.done .t-title { text-decoration:line-through; color:var(--dim); }
-  .task.held { background:var(--amber-bg); }
+  .task.held { background:var(--hold-bg); }
   .task.prio-red { background:var(--prio-red-bg); }
   .task.prio-yellow { background:var(--prio-yellow-bg); }
   .task.prio-green { background:var(--prio-green-bg); }
@@ -73,13 +73,13 @@
   .t-title { font-size:16px; word-break:break-word; }
   .task.held .t-title { color:var(--dim); }
   .task.completing .t-title { text-decoration: line-through; color:var(--dim); }
-  .badge-hold { display:inline-block; background:var(--amber-strong); color:#fff; font-size:11px; font-weight:600; border-radius:6px; padding:1px 7px; margin-left:8px; vertical-align:2px; }
+  .badge-hold { display:inline-block; background:var(--hold-strong); color:#fff; font-size:11px; font-weight:600; border-radius:6px; padding:1px 7px; margin-left:8px; vertical-align:2px; }
   .meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center; }
   .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; border-radius:999px; padding:3px 10px; }
   .pill .dot { width:8px; height:8px; border-radius:999px; flex:none; }
   .proj-pill { border:1px solid var(--border); color:var(--dim); font-size:12px; border-radius:999px; padding:3px 10px; }
   .hold-btn { flex:none; background:transparent; border:1px solid var(--border); color:var(--dim); border-radius:999px; font-size:12px; padding:6px 12px; cursor:pointer; }
-  .hold-btn.on { border-color:var(--amber-strong); color:var(--amber-text); background:var(--amber-bg); }
+  .hold-btn.on { border-color:var(--hold-strong); color:var(--hold-text); background:var(--hold-bg); }
   .add-row { width:100%; text-align:left; background:none; border:none; border-top:1px solid var(--border); color:var(--accent); font-size:14px; padding:12px 16px; cursor:pointer; }
   .add-form { border-top:1px solid var(--border); padding:14px 16px; }
   .add-form input[type=text] { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px; font-size:16px; margin-bottom:12px; }
@@ -87,12 +87,12 @@
   .toggle { display:flex; gap:8px; }
   .toggle button { flex:1; padding:9px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--dim); font-size:14px; cursor:pointer; }
   .toggle button.sel-normal { background:var(--accent); color:var(--accent-text); border-color:var(--accent); font-weight:600; }
-  .toggle button.sel-hold { background:var(--amber-strong); color:#fff; border-color:var(--amber-strong); font-weight:600; }
+  .toggle button.sel-hold { background:var(--hold-strong); color:#fff; border-color:var(--hold-strong); font-weight:600; }
   .f-desc { font-size:12px; color:var(--dim); margin-top:6px; }
   .pills { display:flex; flex-wrap:wrap; gap:7px; }
   .pills .pill { border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-size:12.5px; padding:6px 11px; }
   .submit { width:100%; margin-top:14px; background:var(--accent); color:var(--accent-text); border:none; border-radius:10px; padding:11px; font-size:15px; font-weight:600; cursor:pointer; }
-  .submit.hold { background:var(--amber-strong); color:#fff; }
+  .submit.hold { background:var(--hold-strong); color:#fff; }
   .error { color:var(--danger); font-size:13px; margin-top:8px; }
   .cancel-btn { width:100%; margin-top:8px; background:transparent; border:1px solid var(--border); color:var(--dim); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; }
   .empty { color:var(--dim); font-size:14px; padding:14px 16px; }
@@ -189,7 +189,7 @@ var savedUi = {};
 try { savedUi = JSON.parse(localStorage.getItem(UIKEY) || "{}"); } catch(e) { savedUi = {}; }
 var closedA = savedUi.closedA || {};
 function saveUi(){ try { localStorage.setItem(UIKEY, JSON.stringify({ closedA: closedA })); } catch(e){} }
-var ui = { memoFor: null, memoText: "", view: "project", formFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formPriority: "none", formError: "", delConfirm: null, completing: {} };
+var ui = { memoFor: null, memoText: "", view: "project", formFor: null, editFor: null, formTitle: "", formStatus: "normal", formAssignee: "unassigned", formPriority: "none", formError: "", delConfirm: null, completing: {} };
 
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
@@ -212,6 +212,7 @@ function taskRow(t, showProj) {
     h += '<span class="pdots">' + ["red","yellow","green"].map(function(pc){ return '<button class="pdot' + (t.priority===pc ? ' on' : '') + '" data-act="prio" data-id="' + t.id + '" data-v="' + pc + '" style="background:' + PRIO[pc].color + '" title="優先度: ' + PRIO[pc].label + '"></button>'; }).join("") + '</span>';
     if (!showProj) h += '<span><button class="mv" data-act="up" data-id="' + t.id + '">↑</button> <button class="mv" data-act="down" data-id="' + t.id + '">↓</button></span>';
   }
+  h += '<button class="memo-del" data-act="edittask" data-id="' + t.id + '">編集</button>';
   h += '<button class="memo-del" data-act="deltask" data-id="' + t.id + '">削除</button>';
   h += '</div></div>';
   if (!done) h += '<button class="hold-btn' + (t.hold ? ' on' : '') + '" data-act="hold" data-id="' + t.id + '">' + (t.hold ? '保留を解除' : '保留にする') + '</button>';
@@ -236,12 +237,13 @@ function memoSection(p) {
 }
 function addForm(p) {
   var isHold = ui.formStatus === "hold";
+  var editing = ui.editFor != null;
   var h = '<div class="add-form">'
     + '<input type="text" id="formTitle" placeholder="タスク名" value="' + esc(ui.formTitle) + '">'
     + '<div class="f-label">状態</div><div class="toggle">'
     + '<button data-act="status" data-v="normal" class="' + (!isHold ? 'sel-normal' : '') + '">通常</button>'
     + '<button data-act="status" data-v="hold" class="' + (isHold ? 'sel-hold' : '') + '">保留</button></div>'
-    + '<div class="f-desc">' + (isHold ? '保留として追加します。後から「保留を解除」で通常に戻せます。' : '通常のタスクとして追加します。') + '</div>';
+    + '<div class="f-desc">' + (editing ? (isHold ? '保留に設定します。' : '通常のタスクに設定します。') : (isHold ? '保留として追加します。後から「保留を解除」で通常に戻せます。' : '通常のタスクとして追加します。')) + '</div>';
   h += '<div class="f-label">優先度</div><div class="pills">';
   [["none","なし","#9ca3af"],["red","最重要","#dc2626"],["yellow","優先","#eab308"],["green","低優先","#4ade80"]].forEach(function(pr){
     var sel = ui.formPriority === pr[0];
@@ -258,7 +260,11 @@ function addForm(p) {
     });
     h += '</div>';
   });
-  h += '<button class="submit' + (isHold ? ' hold' : '') + '" data-act="submittask" data-id="' + p.id + '">' + (isHold ? '保留として追加' : 'タスクを追加') + '</button>';
+  if (editing) {
+    h += '<button class="submit' + (isHold ? ' hold' : '') + '" data-act="savetask" data-id="' + ui.editFor + '">保存する</button>';
+  } else {
+    h += '<button class="submit' + (isHold ? ' hold' : '') + '" data-act="submittask" data-id="' + p.id + '">' + (isHold ? '保留として追加' : 'タスクを追加') + '</button>';
+  }
   h += '<button class="cancel-btn" data-act="closeform">やめる</button>';
   if (ui.formError) h += '<div class="error">' + esc(ui.formError) + '</div>';
   h += '</div>';
@@ -292,6 +298,29 @@ function moveProject(id, dir) {
   if (pos < 0 || swap < 0 || swap >= state.projects.length) return;
   var tmp = state.projects[pos]; state.projects[pos] = state.projects[swap]; state.projects[swap] = tmp;
   save(); render();
+}
+function renderAnchored(pid) {
+  // Re-render without losing the user's place: remember the scroll offset and
+  // the on-screen position of the project being acted on, then restore both.
+  // (A plain render() rebuilds #main, which used to drop the view back to a
+  // fixed position after adding a task.)
+  var y = window.scrollY || window.pageYOffset || 0;
+  var before = null;
+  if (pid != null) {
+    var el = document.querySelector('section.project[data-pid="' + pid + '"]');
+    if (el) before = el.getBoundingClientRect().top;
+  }
+  render();
+  var restored = false;
+  if (before !== null) {
+    var el2 = document.querySelector('section.project[data-pid="' + pid + '"]');
+    if (el2) {
+      var d = el2.getBoundingClientRect().top - before;
+      window.scrollTo(0, Math.max(0, (window.scrollY || 0) + d));
+      restored = true;
+    }
+  }
+  if (!restored) window.scrollTo(0, y);
 }
 function render() {
   var main = document.getElementById("main");
@@ -393,14 +422,37 @@ mainEl.addEventListener("click", function(ev){
     ui.delConfirm = null; save(); render();
   }
   else if (act === "hold") { state.tasks.forEach(function(t){ if (t.id === id) t.hold = !t.hold; }); save(); render(); }
-  else if (act === "openform") { ui.formFor = id; ui.formTitle = ""; ui.formStatus = "normal"; ui.formAssignee = "unassigned"; ui.formPriority = "none"; ui.formError = ""; render(); }
+  else if (act === "openform") { ui.formFor = id; ui.editFor = null; ui.formTitle = ""; ui.formStatus = "normal"; ui.formAssignee = "unassigned"; ui.formPriority = "none"; ui.formError = ""; render(); }
+  else if (act === "edittask") {
+    var et = null;
+    state.tasks.forEach(function(t){ if (t.id === id) et = t; });
+    if (et) {
+      ui.editFor = et.id; ui.formFor = et.projectId;
+      ui.formTitle = et.title; ui.formStatus = et.hold ? "hold" : "normal";
+      ui.formAssignee = et.assignee; ui.formPriority = et.priority || "none"; ui.formError = "";
+      ui.view = "project";
+      state.projects.forEach(function(p){ if (p.id === et.projectId) p.open = true; });
+      save(); renderAnchored(et.projectId);
+    }
+  }
+  else if (act === "savetask") {
+    var st = null;
+    state.tasks.forEach(function(t){ if (t.id === id) st = t; });
+    if (!st) { ui.editFor = null; ui.formFor = null; ui.formTitle = ""; ui.formError = ""; render(); return; }
+    var ntitle = ui.formTitle.trim();
+    if (!ntitle) { ui.formError = "タスク名を入力してください"; renderAnchored(st.projectId); return; }
+    st.title = ntitle; st.assignee = ui.formAssignee; st.hold = ui.formStatus === "hold";
+    st.priority = ui.formPriority === "none" ? null : ui.formPriority;
+    ui.editFor = null; ui.formFor = null; ui.formTitle = ""; ui.formError = "";
+    save(); renderAnchored(st.projectId);
+  }
   else if (act === "status") { ui.formStatus = v; render(); }
   else if (act === "assignee") { ui.formAssignee = v; render(); }
   else if (act === "submittask") {
     var title = ui.formTitle.trim();
-    if (!title) { ui.formError = "タスク名を入力してください"; render(); return; }
+    if (!title) { ui.formError = "タスク名を入力してください"; renderAnchored(id); return; }
     state.tasks.push({ id: Date.now(), projectId: id, title: title, assignee: ui.formAssignee, hold: ui.formStatus === "hold", priority: ui.formPriority === "none" ? null : ui.formPriority });
-    ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); render();
+    ui.formFor = null; ui.formTitle = ""; ui.formError = ""; save(); renderAnchored(id);
   }
   else if (act === "deltask") { state.tasks = state.tasks.filter(function(t){ return t.id !== id; }); save(); render(); }
   else if (act === "openmemo") { ui.memoFor = id; ui.memoText = ""; render(); }
@@ -408,11 +460,11 @@ mainEl.addEventListener("click", function(ev){
   else if (act === "submitmemo") {
     var mtext = ui.memoText.trim();
     if (mtext) { state.memos.push({ id: Date.now(), projectId: id, text: mtext }); save(); }
-    ui.memoFor = null; ui.memoText = ""; render();
+    ui.memoFor = null; ui.memoText = ""; renderAnchored(id);
   }
   else if (act === "delmemo") { state.memos = state.memos.filter(function(m){ return m.id !== id; }); save(); render(); }
   else if (act === "atoggle") { if (closedA[v]) delete closedA[v]; else closedA[v] = true; saveUi(); render(); }
-  else if (act === "closeform") { ui.formFor = null; ui.formTitle = ""; ui.formError = ""; render(); }
+  else if (act === "closeform") { ui.formFor = null; ui.editFor = null; ui.formTitle = ""; ui.formError = ""; render(); }
   else if (act === "fprio") { ui.formPriority = v; render(); }
   else if (act === "prio") { state.tasks.forEach(function(t){ if (t.id === id) t.priority = (t.priority === v ? null : v); }); save(); render(); }
   else if (act === "up") { moveTask(id, -1); }
